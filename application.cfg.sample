@@ -1,0 +1,9 @@
+SECRET_KEY = ''
+FERNET_SECRET_KEY = '' # generate with cryptography.fernet.Fernet.generate_key()
+DEBUG = True
+
+# Set these values to match your GitHub app settings.
+GITHUB_APP_ID = 123456
+GITHUB_CLIENT_ID = ''
+GITHUB_CLIENT_SECRET = ''
+GITHUB_WEBHOOK_SECRET = ''
