@@ -46,6 +46,16 @@ def verify_github_webhook_signature(func):
         return func(*args, **kwargs)
     return wrapper_github_webhook_signature_verification
 
+def github_oauth_state_check(func):
+    @functools.wraps(func)
+    def wrapper_github_oauth_state_check(*args, **kwargs):
+        if 'auth_state' in session:
+            auth_state = session.pop('auth_state')
+            if not secrets.compare_digest(auth_state, request.args['state']):
+                return abort(401, 'Bad CSRF token')
+        return func(*args, **kwargs)
+    return wrapper_github_oauth_state_check
+
 
 @app.route('/')
 def index():
@@ -81,13 +91,10 @@ def logout():
     return redirect(next_url)
 
 @app.route('/github-callback')
+@github_oauth_state_check
 @flaskgithub.authorized_handler
 def authorized(access_token):
     next_url = request.args.get('next') or url_for('index')
-    if 'auth_state' in session:
-        auth_state = session.pop('auth_state')
-        if not secrets.compare_digest(auth_state, request.args['state']):
-            return abort(401, 'Bad CSRF token')
 
     if access_token is None:
         return redirect(next_url)
