@@ -9,7 +9,7 @@ import secrets
 from contextlib import contextmanager
 
 from cryptography.fernet import Fernet
-from flask import Flask, request, abort, session, url_for, redirect
+from flask import Flask, request, abort, session, url_for, redirect, flash
 from github import Github
 
 
@@ -68,13 +68,19 @@ def index():
 def github_webhook():
     return "Got it"
 
+def handle_login(next=None):
+    session['auth_state'] = secrets.token_urlsafe()
+    if next:
+        session['auth_next'] = next
+    return redirect(oauthapp.get_login_url(state=session['auth_state']))
+
 @app.route('/login')
 def login():
     if session.get('user_id', None) is not None:
-        return "Already logged in!"
+        flash("Already logged in!")
+        return redirect(request.args.get('next') or url_for('index'))
     else:
-        session['auth_state'] = secrets.token_urlsafe()
-        return redirect(oauthapp.get_login_url(state=session['auth_state']))
+        return handle_login(request.args.get('next'))
 
 @app.route('/logout')
 def logout():
@@ -90,10 +96,9 @@ def logout():
 @app.route('/github-callback')
 @github_oauth_state_check
 def authorized():
-    next_url = request.args.get('next') or url_for('index')
+    next_url = session.pop('auth_next', None) or url_for('index')
 
-    access_token = oauthapp.get_access_token(request.args['code'], session.get('state'))
-
+    access_token = oauthapp.get_access_token(request.args['code'], session.get('auth_state'))
     session['user_access_token'] = encrypt_protected_var(access_token.token)
 
     user = Github(access_token.token).get_user()
