@@ -78,16 +78,13 @@ def login():
 
 @app.route('/logout')
 def logout():
-    resp = None
     next_url = request.args.get('next') or url_for('index')
     if 'user_access_token' in session:
         access_token=decrypt_protected_var(session['user_access_token'])
-        resp = requests.delete(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
-                               data=f'{{"access_token":"{access_token}"}}',
-                               auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
+        requests.delete(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
+                        data=f'{{"access_token":"{access_token}"}}',
+                        auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
     [session.pop(key) for key in list(session.keys()) if key.startswith('user_')]
-    if resp is not None:
-        resp.raise_for_status()
     return redirect(next_url)
 
 @app.route('/github-callback')
