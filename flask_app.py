@@ -9,10 +9,10 @@ import secrets
 from contextlib import contextmanager
 
 from cryptography.fernet import Fernet
-from flask import Flask, request, abort, session, url_for, redirect, flash
+from flask import Flask, request, abort, session, g, url_for, redirect, flash
 from github import Github
 
-from .permissions import *
+from permissions import Principal, AccessRights
 
 
 @contextmanager
@@ -62,11 +62,18 @@ def github_oauth_state_check(func):
     return wrapper_github_oauth_state_check
 
 
-@app.route('/')
-def index():
+@app.before_request
+def load_principal():
     principal = session.get('user_principal')
     if principal:
-        return f'Hello {principal.type}:{principal.login}!'
+        g.principal = Principal._make(principal)
+    else:
+        g.principal = None
+
+@app.route('/')
+def index():
+    if g.principal:
+        return f'Hello {g.principal.type}:{g.principal.login}!'
     return 'Hello from Flask!'
 
 @app.route("/github-webhook", methods=['POST'])
@@ -82,7 +89,7 @@ def handle_login(next=None):
 
 @app.route('/login')
 def login():
-    if session.get('user_principal') is not None:
+    if g.principal is not None:
         flash("Already logged in!")
         return redirect(url_for('index'))
     else:
