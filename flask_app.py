@@ -12,6 +12,8 @@ from cryptography.fernet import Fernet
 from flask import Flask, request, abort, session, url_for, redirect, flash
 from github import Github
 
+from .permissions import *
+
 
 @contextmanager
 def temporary_attribute(obj, attr_name, attr_value):
@@ -50,17 +52,21 @@ def verify_github_webhook_signature(func):
 def github_oauth_state_check(func):
     @functools.wraps(func)
     def wrapper_github_oauth_state_check(*args, **kwargs):
-        if 'auth_state' in session:
-            if not secrets.compare_digest(session['auth_state'], request.args['state']):
-                return abort(401, 'Bad CSRF token')
+        if 'auth_state' in session or 'state' in request.args:
+            try:
+                if not secrets.compare_digest(session['auth_state'], request.args['state']):
+                    return abort(401, 'Bad CSRF token')
+            except KeyError:
+                return abort(401, 'Missing CSRF token')
         return func(*args, **kwargs)
     return wrapper_github_oauth_state_check
 
 
 @app.route('/')
 def index():
-    if 'user_id' in session:
-        return f'Hello {session["user_type"]}:{session["user_login"]}!'
+    principal = session.get('user_principal')
+    if principal:
+        return f'Hello {principal.type}:{principal.login}!'
     return 'Hello from Flask!'
 
 @app.route("/github-webhook", methods=['POST'])
@@ -76,7 +82,7 @@ def handle_login(next=None):
 
 @app.route('/login')
 def login():
-    if session.get('user_id', None) is not None:
+    if session.get('user_principal') is not None:
         flash("Already logged in!")
         return redirect(url_for('index'))
     else:
@@ -98,12 +104,15 @@ def authorized():
     next_url = session.pop('auth_next', None) or url_for('index')
 
     access_token = oauthapp.get_access_token(request.args['code'], session.get('auth_state'))
-    session['user_access_token'] = encrypt_protected_var(access_token.token)
 
     user = Github(access_token.token).get_user()
-    session['user_id'] = user.id
-    session['user_type'] = user.type
-    session['user_login'] = user.login
+    principal = Principal(user.type, user.login)
+    if principal not in app.config['ACL']:
+        flash(f"Sorry, {user.type} {user.login} is not authorized to use this app")
+        return redirect(url_for('index'))
+
+    session['user_principal'] = principal
+    session['user_access_token'] = encrypt_protected_var(access_token.token)
 
     return redirect(next_url)
 
