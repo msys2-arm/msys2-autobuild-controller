@@ -78,20 +78,19 @@ def handle_login(next=None):
 def login():
     if session.get('user_id', None) is not None:
         flash("Already logged in!")
-        return redirect(request.args.get('next') or url_for('index'))
+        return redirect(url_for('index'))
     else:
-        return handle_login(request.args.get('next'))
+        return handle_login()
 
 @app.route('/logout')
 def logout():
-    next_url = request.args.get('next') or url_for('index')
     if 'user_access_token' in session:
         access_token=decrypt_protected_var(session['user_access_token'])
         requests.delete(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
                         data=f'{{"access_token":"{access_token}"}}',
                         auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
     [session.pop(key) for key in list(session.keys()) if key.startswith('user_')]
-    return redirect(next_url)
+    return redirect(url_for('index'))
 
 @app.route('/github-callback')
 @github_oauth_state_check
