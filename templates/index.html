@@ -17,11 +17,12 @@
     <article class="post">
       <header>
         <div>
-          <h1><a href="{{ run['html_url'] }}">{{ run['name'] }}</a></h1>
-          <div class="about">by {{ run['actor']['login'] }} on {{ run['created_at'] }} (last updated {{ run['updated_at'] }})</div>
+          <h1><a href="{{ run.html_url }}">{{ run._rawData['name'] }} - {{ run.event }}</a></h1>
+          <h2>{{ run.status }}{% if run.status == 'completed' %} - {{ run.conclusion }}{% endif %}</h2>
+          <div class="about">by {{ run._rawData['actor']['login'] }} on {{ run.created_at }} (last updated {{ run.updated_at }})</div>
         </div>
-        {% if config['ACL'].check(g.principal, AccessRights.CANCEL_RUN) == AccessRights.CANCEL_RUN %}
-          <a class="action" href="{{ url_for('cancel', id=run['id']) }}">Cancel</a>
+        {% if run.status in ('queued', 'pending', 'in_progress') and config['ACL'].check(g.principal, AccessRights.CANCEL_RUN) == AccessRights.CANCEL_RUN %}
+          <a class="action" href="{{ url_for('cancel', id=run.id) }}">Cancel</a>
         {% endif %}
       </header>
       {# <p class="body">{{ post['body'] }}</p> #}
