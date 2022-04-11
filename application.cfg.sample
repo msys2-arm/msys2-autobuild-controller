@@ -8,6 +8,7 @@ DEBUG = True
 
 # Set these values to match your GitHub app settings.
 GITHUB_APP_ID = 123456
+GITHUB_APP_KEY_FILE = '' # will be loaded via open_instance_resource, contents stored in GITHUB_APP_KEY
 GITHUB_CLIENT_ID = ''
 GITHUB_CLIENT_SECRET = ''
 GITHUB_WEBHOOK_SECRET = ''

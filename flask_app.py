@@ -1,6 +1,7 @@
 
 # A very simple Flask Hello World app for you to get started with...
 
+import datetime
 import functools
 import hmac
 import requests
@@ -10,7 +11,8 @@ from contextlib import contextmanager
 
 from cryptography.fernet import Fernet
 from flask import Flask, request, abort, session, g, url_for, redirect, flash, render_template
-from github import Github
+import github
+from github import Github, GithubIntegration
 
 from permissions import Principal, AccessRights
 
@@ -28,7 +30,21 @@ app = Flask(__name__, instance_relative_config=True)
 # XXX do I care about default settings?
 app.config.from_pyfile('application.cfg', silent=True)
 
+with app.open_instance_resource(app.config['GITHUB_APP_KEY_FILE']) as keyfile:
+    app.config['GITHUB_APP_KEY'] = keyfile.read()
+
+githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
+
+def get_installations():
+    installations = {}
+    gh = Github(jwt=githubintegration.create_jwt())
+    ghapp = gh.get_app()
+    installations = github.PaginatedList.PaginatedList(github.Installation.Installation, ghapp._requester, '/app/installations', None)
+    for installation in installations:
+        account = installation._rawData['account']
+        installations[Principal(account['type'], account['login'])] = installation.id
+    return installations
 
 def encrypt_protected_var(cleartext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).encrypt(cleartext.encode('utf-8')).decode('utf-8')
@@ -106,7 +122,17 @@ def index():
     if request.method == 'POST':
         return redirect(url_for(request.endpoint, **request.view_args))
 
-    return render_template('index.html', message=f'Hello {g.principal.type}:{g.principal.login}!')
+    # get and use app installation token, or just use user token?
+    # as long as we're dealing with public repos, it shouldn't matter
+    # so use up the rate limit on the user token instead :)
+    gh = Github(login_or_token=decrypt_protected_var(session['user_access_token']))
+    repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
+    workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/build.yml'}, completed=False)
+    now = datetime.datetime.utcnow()
+    cutoff = now - datetime.timedelta(days=1)
+    runs = github.PaginatedList.PaginatedList(github.WorkflowRun.WorkflowRun, repo._requester, f'{workflow.url}/runs', {}, list_item="workflow_runs")
+
+    return render_template('index.html', runs=runs, AccessRights=AccessRights)
 
 @app.route('/verifyauth')
 @verify_login_token
@@ -117,6 +143,11 @@ def verifyauth():
 @verify_github_webhook_signature
 def github_webhook():
     return "Got it"
+
+@app.route("/cancel")
+@verify_login_token
+def cancel():
+    pass
 
 @app.route('/login')
 def login():
