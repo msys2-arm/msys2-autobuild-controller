@@ -150,9 +150,32 @@ def verifyauth():
 def github_webhook():
     return "Got it"
 
+@app.route("/workflow_dispatch", methods=['POST'])
+@verify_login_token
+def workflow_dispatch():
+    if app.config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
+        return abort(403, "Access denied")
+
+    # TODO parse and validate inputs
+    inputs = {}
+    installation = githubintegration.get_installation(session['fork'], 'msys2-autobuild')
+    installation_token = githubintegration.get_access_token(installation.id)
+    gh = Github(login_or_token=installation_token.token)
+    repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
+    if False:
+        workflow = repo.get_workflow('build.yml')
+    else:
+        # don't need to GET the workflow just to trigger it
+        workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/build.yml'}, completed=False)
+    workflow.create_dispatch(repo.default_branch, inputs=inputs)
+    return redirect(url_for('index'))
+
 @app.route("/cancel", methods=['POST'])
 @verify_login_token
 def cancel():
+    if app.config['ACL'].check(g.principal, AccessRights.CANCEL_RUN) != AccessRights.CANCEL_RUN:
+        return abort(403, "Access denied")
+
     installation = githubintegration.get_installation(session['fork'], 'msys2-autobuild')
     installation_token = githubintegration.get_access_token(installation.id)
     gh = Github(login_or_token=installation_token.token)
