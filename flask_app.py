@@ -134,6 +134,12 @@ def index():
 
     return render_template('index.html', runs=runs, AccessRights=AccessRights)
 
+@app.route('/trigger')
+def trigger():
+    if not g.principal:
+        return handle_login(url_for(request.endpoint, **request.view_args))
+    return render_template('trigger.html', AccessRights=AccessRights)
+
 @app.route('/verifyauth')
 @verify_login_token
 def verifyauth():
@@ -144,10 +150,19 @@ def verifyauth():
 def github_webhook():
     return "Got it"
 
-@app.route("/cancel")
+@app.route("/cancel", methods=['POST'])
 @verify_login_token
 def cancel():
-    pass
+    installation = githubintegration.get_installation(session['fork'], 'msys2-autobuild')
+    installation_token = githubintegration.get_access_token(installation.id)
+    gh = Github(login_or_token=installation_token.token)
+    repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
+    if False:
+        repo.get_workflow_run(request.form['id']).cancel()
+    else:
+        # don't need to GET the workflow just to cancel it
+        repo._requester.requestJsonAndCheck("POST", f'{repo.url}/actions/runs/{request.form["id"]}/cancel')
+    return redirect(url_for('index'))
 
 @app.route('/login')
 def login():
