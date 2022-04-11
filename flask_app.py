@@ -36,6 +36,12 @@ def encrypt_protected_var(cleartext: str) -> str:
 def decrypt_protected_var(ciphertext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).decrypt(ciphertext.encode('utf-8')).decode('utf-8')
 
+def handle_login(next=None):
+    session['auth_state'] = secrets.token_urlsafe()
+    if next:
+        session['auth_next'] = next
+    return redirect(oauthapp.get_login_url(state=session['auth_state']))
+
 def verify_github_webhook_signature(func):
     @functools.wraps(func)
     def wrapper_github_webhook_signature_verification(*args, **kwargs):
@@ -61,6 +67,19 @@ def github_oauth_state_check(func):
         return func(*args, **kwargs)
     return wrapper_github_oauth_state_check
 
+def verify_login_token(func):
+    @functools.wraps(func)
+    def wrapper_verify_login_token(*args, **kwargs):
+        resp = None
+        if 'user_access_token' in session:
+            access_token=decrypt_protected_var(session['user_access_token'])
+            resp = requests.post(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
+                                 data=f'{{"access_token":"{access_token}"}}',
+                                 auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
+        if not resp:
+            return handle_login(url_for(request.endpoint, **request.view_args))
+        return func(*args, **kwargs)
+    return wrapper_verify_login_token
 
 @app.before_request
 def load_principal():
@@ -76,16 +95,15 @@ def index():
         return f'Hello {g.principal.type}:{g.principal.login}!'
     return 'Hello from Flask!'
 
+@app.route('/verifyauth')
+@verify_login_token
+def verifyauth():
+    return 'Token is good!'
+
 @app.route("/github-webhook", methods=['POST'])
 @verify_github_webhook_signature
 def github_webhook():
     return "Got it"
-
-def handle_login(next=None):
-    session['auth_state'] = secrets.token_urlsafe()
-    if next:
-        session['auth_next'] = next
-    return redirect(oauthapp.get_login_url(state=session['auth_state']))
 
 @app.route('/login')
 def login():
