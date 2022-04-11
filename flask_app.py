@@ -9,7 +9,7 @@ import secrets
 from contextlib import contextmanager
 
 from cryptography.fernet import Fernet
-from flask import Flask, request, abort, session, g, url_for, redirect, flash
+from flask import Flask, request, abort, session, g, url_for, redirect, flash, render_template
 from github import Github
 
 from permissions import Principal, AccessRights
@@ -92,8 +92,10 @@ def load_principal():
 @app.route('/')
 def index():
     if g.principal:
-        return f'Hello {g.principal.type}:{g.principal.login}!'
-    return 'Hello from Flask!'
+        message = f'Hello {g.principal.type}:{g.principal.login}!'
+    else:
+        message = 'Hello from Flask!'
+    return render_template('index.html', message=message)
 
 @app.route('/verifyauth')
 @verify_login_token
