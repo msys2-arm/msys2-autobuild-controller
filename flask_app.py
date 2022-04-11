@@ -95,11 +95,10 @@ def load_principal():
 
 @app.route('/')
 def index():
-    if g.principal:
-        message = f'Hello {g.principal.type}:{g.principal.login}!'
-    else:
-        message = 'Hello from Flask!'
-    return render_template('index.html', message=message)
+    if not g.principal:
+        return render_template('index_anonymous.html')
+
+    return render_template('index.html', message=f'Hello {g.principal.type}:{g.principal.login}!')
 
 @app.route('/verifyauth')
 @verify_login_token
