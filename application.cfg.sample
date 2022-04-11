@@ -17,3 +17,5 @@ ACL = AccessControlList({
     Principal('User', 'lurker'): AccessRights.NO_ACCESS,
     Principal('User', 'collaborator'): AccessRights.TRIGGER_RUN|AccessRights.BREAK_CYCLES
 })
+
+AUTOBUILD_FORKS = frozenset(('msys2', 'msys2-arm'))

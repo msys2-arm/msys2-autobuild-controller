@@ -93,10 +93,18 @@ def load_principal():
     else:
         g.principal = None
 
-@app.route('/')
+@app.route('/', methods=('GET', 'POST'))
 def index():
     if not g.principal:
         return render_template('index_anonymous.html')
+
+    if 'fork' in request.values and request.values['fork'] in app.config['AUTOBUILD_FORKS']:
+        session['fork'] = request.values['fork']
+    elif 'fork' not in session:
+        session['fork'] = sorted(app.config['AUTOBUILD_FORKS'])[0]
+
+    if request.method == 'POST':
+        return redirect(url_for(request.endpoint, **request.view_args))
 
     return render_template('index.html', message=f'Hello {g.principal.type}:{g.principal.login}!')
 

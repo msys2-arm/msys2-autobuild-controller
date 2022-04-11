@@ -2,9 +2,14 @@
 
 {% block header %}
   <h1>{% block title %}Recent jobs{% endblock %}</h1>
-  {% if False %}
-    <a class="action" href="{{ url_for('') }}">New</a>
-  {% endif %}
+  <form method="POST">
+    For autobuild fork
+    <select name="fork" id="fork" onchange="this.form.submit()">
+      {% for fork in config['AUTOBUILD_FORKS']|sort %}
+        <option value="{{ fork }}"{{ " selected" if fork == session['fork'] else "" }}>{{ fork }}</option>
+      {% endfor %}
+    </select>
+  </form>
 {% endblock %}
 
 {% block content %}
