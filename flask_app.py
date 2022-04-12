@@ -112,8 +112,13 @@ def load_principal():
 @app.route('/', methods=('GET', 'POST'))
 def index():
     if not g.principal:
+        if request.method != 'GET':
+            return abort(405, 'Method not allowed')
         return render_template('index_anonymous.html')
+    return authenticated_index()
 
+@verify_login_token
+def authenticated_index():
     if 'fork' in request.values and request.values['fork'] in app.config['AUTOBUILD_FORKS']:
         session['fork'] = request.values['fork']
     elif 'fork' not in session:
