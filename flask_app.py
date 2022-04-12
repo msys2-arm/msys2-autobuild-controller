@@ -14,6 +14,7 @@ from flask import Flask, request, abort, session, g, url_for, redirect, flash, r
 import github
 from github import Github, GithubIntegration
 
+from validate_autobuild_inputs import validate_optional_deps, validate_clear_failed_build_types, validate_clear_failed_packages
 from permissions import Principal, AccessRights
 
 
@@ -163,6 +164,26 @@ def workflow_dispatch():
 
     # TODO parse and validate inputs
     inputs = {}
+    if request.form.get('optional_deps'):
+        if app.config['ACL'].check(g.principal, AccessRights.BREAK_CYCLES) != AccessRights.BREAK_CYCLES:
+            return abort(403, "Access denied")
+        try:
+            inputs['optional_deps'] = validate_optional_deps(request.form['optional_deps'])
+        except ValueError:
+            return abort(400, "Bad request")
+
+    if request.form.get('clear_failed_packages') or request.form.get('clear_failed_build_types'):
+        if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
+            return abort(403, "Access denied")
+        try:
+            if 'clear_failed_packages' in request.form:
+                inputs['clear_failed_packages'] = validate_clear_failed_packages(request.form['clear_failed_packages'])
+
+            if 'clear_failed_build_types' in request.form:
+                inputs['clear_failed_build_types'] = validate_clear_failed_build_types(request.form['clear_failed_build_types'])
+        except ValueError:
+            return abort(400, "Bad request")
+
     installation = githubintegration.get_installation(session['fork'], 'msys2-autobuild')
     installation_token = githubintegration.get_access_token(installation.id)
     gh = Github(login_or_token=installation_token.token)
