@@ -5,6 +5,7 @@ from permissions import *
 SECRET_KEY = ''
 FERNET_SECRET_KEY = '' # generate with cryptography.fernet.Fernet.generate_key()
 DEBUG = True
+SESSION_COOKIE_SECURE = False
 
 # Set these values to match your GitHub app settings.
 GITHUB_APP_ID = 123456
