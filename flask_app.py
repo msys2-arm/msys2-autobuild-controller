@@ -37,14 +37,14 @@ githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['G
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
 
 def get_installations():
-    installations = {}
+    ret = {}
     gh = Github(jwt=githubintegration.create_jwt())
     ghapp = gh.get_app()
     installations = github.PaginatedList.PaginatedList(github.Installation.Installation, ghapp._requester, '/app/installations', None)
     for installation in installations:
         account = installation._rawData['account']
-        installations[Principal(account['type'], account['login'])] = installation.id
-    return installations
+        ret[Principal(account['type'], account['login'])] = installation.id
+    return ret
 
 def encrypt_protected_var(cleartext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).encrypt(cleartext.encode('utf-8')).decode('utf-8')
