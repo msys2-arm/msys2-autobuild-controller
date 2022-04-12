@@ -176,10 +176,10 @@ def workflow_dispatch():
         if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
             return abort(403, "Access denied")
         try:
-            if 'clear_failed_packages' in request.form:
+            if request.form.get('clear_failed_packages'):
                 inputs['clear_failed_packages'] = validate_clear_failed_packages(request.form['clear_failed_packages'])
 
-            if 'clear_failed_build_types' in request.form:
+            if request.form.get('clear_failed_build_types'):
                 inputs['clear_failed_build_types'] = validate_clear_failed_build_types(request.form['clear_failed_build_types'])
         except ValueError:
             return abort(400, "Bad request")
