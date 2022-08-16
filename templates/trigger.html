@@ -10,12 +10,6 @@
     <label for="optional_deps">optional_deps=pkg-A:optional-dep-B,pkg-C:optional-dep-D</label>
     <input name="optional_deps" id="optional_deps">
   {% endif %}
-  {% if config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) == AccessRights.CLEAR_FAILURES %}
-    <label for="clear_failed_packages">clear_failed_packages=mingw-w64-foo,mingw-w64-bar</label>
-    <input name="clear_failed_packages" id="clear_failed_packages">
-    <label for="clear_failed_build_types">clear_failed_build_types=mingw64,clang64</label>
-    <input name="clear_failed_build_types" id="clear_failed_build_types">
-  {% endif %}
   <input type="submit" value="Trigger">
 </form>
 {% endblock %}

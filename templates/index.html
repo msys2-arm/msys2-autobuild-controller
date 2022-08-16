@@ -2,7 +2,12 @@
 
 {% block header %}
   <h1>{% block title %}Recent jobs{% endblock %}</h1>
-  <h3 style="flex-direction: column; margin-right: 1rem"><a class="action" href="{{ url_for('trigger') }}">Trigger run</a></h3>
+  {% if config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) == AccessRights.TRIGGER_RUN %}
+    <h3 style="flex-direction: column; margin-right: 1rem"><a class="action" href="{{ url_for('trigger') }}">Trigger run</a></h3>
+  {% endif %}
+  {% if config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) == AccessRights.CLEAR_FAILURES %}
+  <h3 style="flex-direction: column; margin-right: 1rem"><a class="action" href="{{ url_for('maint') }}">Maintenance</a></h3>
+  {% endif %}
   <form method="POST">
     For autobuild fork
     <select name="fork" id="fork" onchange="this.form.submit()">

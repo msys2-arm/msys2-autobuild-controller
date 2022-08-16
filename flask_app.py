@@ -144,7 +144,17 @@ def authenticated_index():
 def trigger():
     if not g.principal:
         return handle_login(url_for(request.endpoint, **request.view_args))
+    if app.config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
+        return abort(403, "Access denied")
     return render_template('trigger.html', AccessRights=AccessRights)
+
+@app.route('/maint')
+def maint():
+    if not g.principal:
+        return handle_login(url_for(request.endpoint, **request.view_args))
+    if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
+        return abort(403, "Access denied")
+    return render_template('maint.html', AccessRights=AccessRights)
 
 @app.route('/verifyauth')
 @verify_login_token
@@ -156,13 +166,24 @@ def verifyauth():
 def github_webhook():
     return "Got it"
 
+def _workflow_dispatch(workflow_yml, inputs):
+    installation = githubintegration.get_installation(session['fork'], 'msys2-autobuild')
+    installation_token = githubintegration.get_access_token(installation.id)
+    gh = Github(login_or_token=installation_token.token)
+    repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
+    if False:
+        workflow = repo.get_workflow(workflow_yml)
+    else:
+        # don't need to GET the workflow just to trigger it
+        workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/{workflow_yml}'}, completed=False)
+    workflow.create_dispatch(repo.default_branch, inputs=inputs)
+
 @app.route("/workflow_dispatch", methods=['POST'])
 @verify_login_token
 def workflow_dispatch():
     if app.config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
         return abort(403, "Access denied")
 
-    # TODO parse and validate inputs
     inputs = {}
     if request.form.get('optional_deps'):
         if app.config['ACL'].check(g.principal, AccessRights.BREAK_CYCLES) != AccessRights.BREAK_CYCLES:
@@ -172,9 +193,17 @@ def workflow_dispatch():
         except ValueError:
             return abort(400, "Bad request")
 
+    _workflow_dispatch('build.yml', inputs)
+    return redirect(url_for('index'))
+
+@app.route("/maint_dispatch", methods=['POST'])
+@verify_login_token
+def maint_dispatch():
+    if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
+        return abort(403, "Access denied")
+
+    inputs = {}
     if request.form.get('clear_failed_packages') or request.form.get('clear_failed_build_types'):
-        if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
-            return abort(403, "Access denied")
         try:
             if request.form.get('clear_failed_packages'):
                 inputs['clear_failed_packages'] = validate_clear_failed_packages(request.form['clear_failed_packages'])
@@ -184,16 +213,7 @@ def workflow_dispatch():
         except ValueError:
             return abort(400, "Bad request")
 
-    installation = githubintegration.get_installation(session['fork'], 'msys2-autobuild')
-    installation_token = githubintegration.get_access_token(installation.id)
-    gh = Github(login_or_token=installation_token.token)
-    repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
-    if False:
-        workflow = repo.get_workflow('build.yml')
-    else:
-        # don't need to GET the workflow just to trigger it
-        workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/build.yml'}, completed=False)
-    workflow.create_dispatch(repo.default_branch, inputs=inputs)
+    _workflow_dispatch('maint.yml', inputs)
     return redirect(url_for('index'))
 
 @app.route("/cancel", methods=['POST'])
