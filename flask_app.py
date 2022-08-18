@@ -203,15 +203,14 @@ def maint_dispatch():
         return abort(403, "Access denied")
 
     inputs = {}
-    if request.form.get('clear_failed_packages') or request.form.get('clear_failed_build_types'):
-        try:
-            if request.form.get('clear_failed_packages'):
-                inputs['clear_failed_packages'] = validate_clear_failed_packages(request.form['clear_failed_packages'])
+    try:
+        if request.form.get('clear_failed_packages'):
+            inputs['clear_failed_packages'] = validate_clear_failed_packages(request.form['clear_failed_packages'])
 
-            if request.form.get('clear_failed_build_types'):
-                inputs['clear_failed_build_types'] = validate_clear_failed_build_types(request.form['clear_failed_build_types'])
-        except ValueError:
-            return abort(400, "Bad request")
+        if request.form.get('clear_failed_build_types'):
+            inputs['clear_failed_build_types'] = validate_clear_failed_build_types(request.form['clear_failed_build_types'])
+    except ValueError:
+        return abort(400, "Bad request")
 
     _workflow_dispatch('maint.yml', inputs)
     return redirect(url_for('index'))
