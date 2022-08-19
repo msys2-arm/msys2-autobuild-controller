@@ -6,6 +6,7 @@ import functools
 import hmac
 import requests
 import secrets
+import sys
 
 from contextlib import contextmanager
 
@@ -36,6 +37,9 @@ with app.open_instance_resource(app.config['GITHUB_APP_KEY_FILE']) as keyfile:
 
 githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
+
+def audit_log(principal, action, params):
+    print(f"AUDIT LOG: {principal} {action} {params!r}\n", file=sys.stderr)
 
 def get_installations():
     ret = {}
@@ -176,7 +180,7 @@ def _workflow_dispatch(workflow_yml, inputs):
     else:
         # don't need to GET the workflow just to trigger it
         workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/{workflow_yml}'}, completed=False)
-    workflow.create_dispatch(repo.default_branch, inputs=inputs)
+    return workflow.create_dispatch(repo.default_branch, inputs=inputs)
 
 @app.route("/workflow_dispatch", methods=['POST'])
 @verify_login_token
@@ -193,7 +197,8 @@ def workflow_dispatch():
         except ValueError:
             return abort(400, "Bad request")
 
-    _workflow_dispatch('build.yml', inputs)
+    if _workflow_dispatch('build.yml', inputs):
+        audit_log(g.principal, 'workflow_dispatch', inputs)
     return redirect(url_for('index'))
 
 @app.route("/maint_dispatch", methods=['POST'])
@@ -212,7 +217,8 @@ def maint_dispatch():
     except ValueError:
         return abort(400, "Bad request")
 
-    _workflow_dispatch('maint.yml', inputs)
+    if _workflow_dispatch('maint.yml', inputs):
+        audit_log(g.principal, 'maint_dispatch', inputs)
     return redirect(url_for('index'))
 
 @app.route("/cancel", methods=['POST'])
@@ -226,10 +232,12 @@ def cancel():
     gh = Github(login_or_token=installation_token.token)
     repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
     if False:
-        repo.get_workflow_run(request.form['id']).cancel()
+        if repo.get_workflow_run(request.form['id']).cancel():
+            audit_log(g.principal, 'cancel', request.form['id'])
     else:
         # don't need to GET the workflow just to cancel it
         repo._requester.requestJsonAndCheck("POST", f'{repo.url}/actions/runs/{request.form["id"]}/cancel')
+        audit_log(g.principal, 'cancel', request.form['id'])
     return redirect(url_for('index'))
 
 @app.route('/login')

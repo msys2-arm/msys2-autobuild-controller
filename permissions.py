@@ -8,6 +8,8 @@ __all__ = ('Principal', 'AccessRights', 'AccessControlList')
 class Principal(NamedTuple):
     type: str
     login: str
+    def __str__(self):
+        return ":".join(self)
 
 class AccessRights(Flag):
     NO_ACCESS = 0
