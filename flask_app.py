@@ -39,7 +39,7 @@ githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['G
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
 
 def audit_log(principal, action, params):
-    print(f"AUDIT LOG: {principal} {action} {params!r}\n", file=sys.stderr)
+    print(f"AUDIT LOG: {principal} {action} {params!r}", file=sys.stderr)
 
 def get_installations():
     ret = {}
