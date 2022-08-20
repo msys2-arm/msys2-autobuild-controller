@@ -1,7 +1,6 @@
 
 # A very simple Flask Hello World app for you to get started with...
 
-import datetime
 import functools
 import hmac
 import requests
@@ -138,8 +137,6 @@ def authenticated_index():
     gh = Github(login_or_token=decrypt_protected_var(session['user_access_token']))
     repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
     workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/build.yml'}, completed=False)
-    now = datetime.datetime.utcnow()
-    cutoff = now - datetime.timedelta(days=1)
     runs = github.PaginatedList.PaginatedList(github.WorkflowRun.WorkflowRun, repo._requester, f'{workflow.url}/runs', {}, list_item="workflow_runs")
 
     return render_template('index.html', runs=runs, AccessRights=AccessRights)
