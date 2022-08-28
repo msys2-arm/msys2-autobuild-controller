@@ -40,16 +40,6 @@ oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.co
 def audit_log(principal, action, params):
     print(f"AUDIT LOG: {principal} {action} {params!r}", file=sys.stderr)
 
-def get_installations():
-    ret = {}
-    gh = Github(jwt=githubintegration.create_jwt())
-    ghapp = gh.get_app()
-    installations = github.PaginatedList.PaginatedList(github.Installation.Installation, ghapp._requester, '/app/installations', None)
-    for installation in installations:
-        account = installation._rawData['account']
-        ret[Principal(account['type'], account['login'])] = installation.id
-    return ret
-
 def encrypt_protected_var(cleartext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).encrypt(cleartext.encode('utf-8')).decode('utf-8')
 
