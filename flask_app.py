@@ -8,6 +8,7 @@ import secrets
 import sys
 
 from contextlib import contextmanager
+from typing import Optional
 
 from cryptography.fernet import Fernet
 from flask import Flask, request, abort, session, g, url_for, redirect, flash, render_template
@@ -45,6 +46,14 @@ def encrypt_protected_var(cleartext: str) -> str:
 
 def decrypt_protected_var(ciphertext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).decrypt(ciphertext.encode('utf-8')).decode('utf-8')
+
+def _get_autobuild_repo(fork: str, token: Optional[str] = None) -> github.Repository.Repository:
+    if token is None:
+        installation = githubintegration.get_installation(fork, 'msys2-autobuild')
+        installation_token = githubintegration.get_access_token(installation.id)
+        token = installation_token.token
+    gh = Github(login_or_token=token)
+    return gh.get_repo(fork + '/msys2-autobuild', lazy=True)
 
 def clear_login_session():
     [session.pop(key) for key in list(session.keys()) if key.startswith('user_')]
@@ -124,8 +133,7 @@ def authenticated_index():
     # get and use app installation token, or just use user token?
     # as long as we're dealing with public repos, it shouldn't matter
     # so use up the rate limit on the user token instead :)
-    gh = Github(login_or_token=decrypt_protected_var(session['user_access_token']))
-    repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
+    repo = _get_autobuild_repo(session['fork'], decrypt_protected_var(session['user_access_token']))
     workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/build.yml'}, completed=False)
     runs = github.PaginatedList.PaginatedList(github.WorkflowRun.WorkflowRun, repo._requester, f'{workflow.url}/runs', {}, list_item="workflow_runs")
 
@@ -158,10 +166,7 @@ def github_webhook():
     return "Got it"
 
 def _workflow_dispatch(workflow_yml, inputs):
-    installation = githubintegration.get_installation(session['fork'], 'msys2-autobuild')
-    installation_token = githubintegration.get_access_token(installation.id)
-    gh = Github(login_or_token=installation_token.token)
-    repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
+    repo = _get_autobuild_repo(session['fork'])
     if False:
         workflow = repo.get_workflow(workflow_yml)
     else:
@@ -214,10 +219,7 @@ def cancel():
     if app.config['ACL'].check(g.principal, AccessRights.CANCEL_RUN) != AccessRights.CANCEL_RUN:
         return abort(403, "Access denied")
 
-    installation = githubintegration.get_installation(session['fork'], 'msys2-autobuild')
-    installation_token = githubintegration.get_access_token(installation.id)
-    gh = Github(login_or_token=installation_token.token)
-    repo = gh.get_repo(session['fork'] + '/msys2-autobuild', lazy=True)
+    repo = _get_autobuild_repo(session['fork'])
     if False:
         if repo.get_workflow_run(request.form['id']).cancel():
             audit_log(g.principal, 'cancel', request.form['id'])
