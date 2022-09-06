@@ -39,8 +39,8 @@ with app.open_instance_resource(app.config['GITHUB_APP_KEY_FILE']) as keyfile:
 githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
 
-def audit_log(principal, action, params):
-    print(f"AUDIT LOG: {principal} {action} {params!r}", file=sys.stderr)
+def audit_log(principal, fork, action, params):
+    print(f"AUDIT LOG: {principal} {fork} {action} {params!r}", file=sys.stderr)
 
 def encrypt_protected_var(cleartext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).encrypt(cleartext.encode('utf-8')).decode('utf-8')
@@ -191,7 +191,7 @@ def workflow_dispatch():
             return abort(400, "Bad request")
 
     if _workflow_dispatch('build.yml', inputs):
-        audit_log(g.principal, 'workflow_dispatch', inputs)
+        audit_log(g.principal, session['fork'], 'workflow_dispatch', inputs)
     return redirect(url_for('index'))
 
 @app.route("/maint_dispatch", methods=['POST'])
@@ -211,7 +211,7 @@ def maint_dispatch():
         return abort(400, "Bad request")
 
     if _workflow_dispatch('maint.yml', inputs):
-        audit_log(g.principal, 'maint_dispatch', inputs)
+        audit_log(g.principal, session['fork'], 'maint_dispatch', inputs)
     return redirect(url_for('index'))
 
 @app.route("/cancel", methods=['POST'])
@@ -223,11 +223,11 @@ def cancel():
     repo = _get_autobuild_repo(session['fork'])
     if False:
         if repo.get_workflow_run(request.form['id']).cancel():
-            audit_log(g.principal, 'cancel', request.form['id'])
+            audit_log(g.principal, session['fork'], 'cancel', request.form['id'])
     else:
         # don't need to GET the workflow just to cancel it
         repo._requester.requestJsonAndCheck("POST", f'{repo.url}/actions/runs/{request.form["id"]}/cancel')
-        audit_log(g.principal, 'cancel', request.form['id'])
+        audit_log(g.principal, session['fork'], 'cancel', request.form['id'])
     return redirect(url_for('index'))
 
 @app.route('/login')
