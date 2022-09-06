@@ -3,6 +3,7 @@
 
 import functools
 import hmac
+import json
 import requests
 import secrets
 import sys
@@ -180,7 +181,7 @@ def workflow_dispatch():
     if app.config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
         return abort(403, "Access denied")
 
-    inputs = {}
+    inputs = {'context': json.dumps({"principal": g.principal})}
     if request.form.get('optional_deps'):
         if app.config['ACL'].check(g.principal, AccessRights.BREAK_CYCLES) != AccessRights.BREAK_CYCLES:
             return abort(403, "Access denied")
@@ -199,7 +200,7 @@ def maint_dispatch():
     if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
         return abort(403, "Access denied")
 
-    inputs = {}
+    inputs = {'context': json.dumps({"principal": g.principal})}
     try:
         if request.form.get('clear_failed_packages'):
             inputs['clear_failed_packages'] = validate_clear_failed_packages(request.form['clear_failed_packages'])
