@@ -2,10 +2,13 @@
 
 from permissions import *
 
-SECRET_KEY = ''
+# Flask config
+SECRET_KEY = '' # see https://flask.palletsprojects.com/en/2.2.x/config/#SECRET_KEY
+DEBUG = True # https://flask.palletsprojects.com/en/2.2.x/config/#DEBUG
+SESSION_COOKIE_SECURE = False # https://flask.palletsprojects.com/en/2.2.x/config/#SESSION_COOKIE_SECURE
+
+# For storing the GH access token encrypted in the session cookie
 FERNET_SECRET_KEY = '' # generate with cryptography.fernet.Fernet.generate_key()
-DEBUG = True
-SESSION_COOKIE_SECURE = False
 
 # Set these values to match your GitHub app settings.
 GITHUB_APP_ID = 123456
