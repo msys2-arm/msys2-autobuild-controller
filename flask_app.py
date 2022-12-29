@@ -20,15 +20,6 @@ from validate_autobuild_inputs import validate_optional_deps, validate_clear_fai
 from permissions import Principal, AccessRights
 
 
-@contextmanager
-def temporary_attribute(obj, attr_name, attr_value):
-    old_value = getattr(obj, attr_name)
-    setattr(obj, attr_name, attr_value)
-    try:
-        yield
-    finally:
-        setattr(obj, attr_name, old_value)
-
 app = Flask(__name__, instance_relative_config=True)
 # XXX do I care about default settings?
 app.config.from_pyfile('application.cfg', silent=True)
@@ -155,11 +146,6 @@ def maint():
     if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
         return abort(403, "Access denied")
     return render_template('maint.html', AccessRights=AccessRights)
-
-@app.route('/verifyauth')
-@verify_login_token
-def verifyauth():
-    return 'Token is good!'
 
 @app.route("/github-webhook", methods=['POST'])
 @verify_github_webhook_signature
