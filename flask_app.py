@@ -192,6 +192,7 @@ def workflow_dispatch():
 
     if _workflow_dispatch('build.yml', inputs):
         audit_log(g.principal, session['fork'], 'workflow_dispatch', inputs)
+        flash("Workflow run was successfully requested")
     return redirect(url_for('index'))
 
 @app.route("/maint_dispatch", methods=['POST'])
@@ -212,6 +213,7 @@ def maint_dispatch():
 
     if _workflow_dispatch('maint.yml', inputs):
         audit_log(g.principal, session['fork'], 'maint_dispatch', inputs)
+        flash("Maintenance workflow run was successfully requested")
     return redirect(url_for('index'))
 
 @app.route("/cancel", methods=['POST'])
