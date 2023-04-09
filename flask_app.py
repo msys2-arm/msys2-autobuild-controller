@@ -24,7 +24,7 @@ app = Flask(__name__, instance_relative_config=True)
 app.config.from_pyfile('application.cfg', silent=True)
 
 with app.open_instance_resource(app.config['GITHUB_APP_KEY_FILE']) as keyfile:
-    app.config['GITHUB_APP_KEY'] = keyfile.read()
+    app.config['GITHUB_APP_KEY'] = keyfile.read().decode()
 
 githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
