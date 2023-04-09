@@ -30,6 +30,7 @@ def validate_optional_deps(optional_deps: str) -> str:
 
     return optional_deps
 
+
 def validate_clear_failed_build_types(clear_failed_build_types: str) -> str:
     clear_failed_build_types = clear_failed_build_types.replace(' ', '')
     for entry in clear_failed_build_types.split(','):
@@ -37,10 +38,10 @@ def validate_clear_failed_build_types(clear_failed_build_types: str) -> str:
             raise ValueError(f"Malformed clear_failed_build_types entry: '{entry}'")
     return clear_failed_build_types
 
+
 def validate_clear_failed_packages(clear_failed_packages: str) -> str:
     clear_failed_packages = clear_failed_packages.replace(' ', '')
     for entry in clear_failed_packages.split(','):
         if not _PKGNAME_RE.fullmatch(entry):
             raise ValueError(f"Malformed clear_failed_packages entry: '{entry}'")
     return clear_failed_packages
-

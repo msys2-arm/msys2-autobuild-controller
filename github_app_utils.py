@@ -20,4 +20,3 @@ def get_installations(githubintegration: GithubIntegration) -> Dict[Principal, i
         account = installation._rawData['account']
         ret[Principal(account['type'], account['login'])] = installation.id
     return ret
-

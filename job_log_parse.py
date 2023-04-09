@@ -16,10 +16,11 @@ class PackageUpdate(NamedTuple):
     repoversion: str
     updateversion: str
 
+
 DepCycleList = List[Tuple[PackageUpdate, PackageUpdate]]
 
 _GITHUB_LOG_TIMESTAMP_RE = re.compile(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{7}Z ', re.M)
-_DEP_CYCLE_RE = re.compile(r'^##\[group\]Dependency Cycles \(\d+\)\s*$(.*?)^##\[endgroup\]\s*$', re.M|re.S)
+_DEP_CYCLE_RE = re.compile(r'^##\[group\]Dependency Cycles \(\d+\)\s*$(.*?)^##\[endgroup\]\s*$', re.M | re.S)
 _DEP_CYCLE_ENTRY_RE = re.compile(r'^(\S+) \[(\S+) -> (\S+)\]\s+<-->\s+(\S+) \[(\S+) -> (\S+)\]\s*$')
 
 
@@ -53,7 +54,6 @@ def parse_schedule_job_log(run: github.WorkflowRun.WorkflowRun) -> Optional[DepC
                                         ret.append((PackageUpdate._make(groups[:3]),
                                                     PackageUpdate._make(groups[3:])))
                             return ret
-                        break # the steps loop
-                break # the jobs loop
+                        break  # the steps loop
+                break  # the jobs loop
     return None
-

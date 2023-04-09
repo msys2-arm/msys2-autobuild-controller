@@ -8,7 +8,6 @@ import requests
 import secrets
 import sys
 
-from contextlib import contextmanager
 from typing import Optional
 
 from cryptography.fernet import Fernet
@@ -30,14 +29,18 @@ with app.open_instance_resource(app.config['GITHUB_APP_KEY_FILE']) as keyfile:
 githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
 
+
 def audit_log(principal, fork, action, params):
     print(f"AUDIT LOG: {principal} {fork} {action} {params!r}", file=sys.stderr)
+
 
 def encrypt_protected_var(cleartext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).encrypt(cleartext.encode('utf-8')).decode('utf-8')
 
+
 def decrypt_protected_var(ciphertext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).decrypt(ciphertext.encode('utf-8')).decode('utf-8')
+
 
 def _get_autobuild_repo(fork: str, token: Optional[str] = None) -> github.Repository.Repository:
     if token is None:
@@ -47,8 +50,10 @@ def _get_autobuild_repo(fork: str, token: Optional[str] = None) -> github.Reposi
     gh = Github(login_or_token=token)
     return gh.get_repo(fork + '/msys2-autobuild', lazy=True)
 
+
 def clear_login_session():
     [session.pop(key) for key in list(session.keys()) if key.startswith('user_')]
+
 
 def handle_login(next=None):
     session['auth_state'] = secrets.token_urlsafe()
@@ -56,18 +61,20 @@ def handle_login(next=None):
         session['auth_next'] = next
     return redirect(oauthapp.get_login_url(state=session['auth_state']))
 
+
 def verify_github_webhook_signature(func):
     @functools.wraps(func)
     def wrapper_github_webhook_signature_verification(*args, **kwargs):
-        signature = "sha256="+hmac.digest(
-                app.config['GITHUB_WEBHOOK_SECRET'].encode('utf-8'),
-                request.data,
-                'SHA256'
-            ).hex().lower()
+        signature = "sha256=" + hmac.digest(
+            app.config['GITHUB_WEBHOOK_SECRET'].encode('utf-8'),
+            request.data,
+            'SHA256'
+        ).hex().lower()
         if not hmac.compare_digest(signature, request.headers['X-Hub-Signature-256']):
             return abort(401, 'Bad digest')
         return func(*args, **kwargs)
     return wrapper_github_webhook_signature_verification
+
 
 def github_oauth_state_check(func):
     @functools.wraps(func)
@@ -81,12 +88,13 @@ def github_oauth_state_check(func):
         return func(*args, **kwargs)
     return wrapper_github_oauth_state_check
 
+
 def verify_login_token(func):
     @functools.wraps(func)
     def wrapper_verify_login_token(*args, **kwargs):
         resp = None
         if 'user_access_token' in session:
-            access_token=decrypt_protected_var(session['user_access_token'])
+            access_token = decrypt_protected_var(session['user_access_token'])
             resp = requests.post(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
                                  data=f'{{"access_token":"{access_token}"}}',
                                  auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
@@ -96,6 +104,7 @@ def verify_login_token(func):
         return func(*args, **kwargs)
     return wrapper_verify_login_token
 
+
 @app.before_request
 def load_principal():
     principal = session.get('user_principal')
@@ -104,6 +113,7 @@ def load_principal():
     else:
         g.principal = None
 
+
 @app.route('/', methods=('GET', 'POST'))
 def index():
     if not g.principal:
@@ -111,6 +121,7 @@ def index():
             return abort(405, 'Method not allowed')
         return render_template('index_anonymous.html')
     return authenticated_index()
+
 
 @verify_login_token
 def authenticated_index():
@@ -131,6 +142,7 @@ def authenticated_index():
 
     return render_template('index.html', runs=runs, AccessRights=AccessRights)
 
+
 @app.route('/trigger')
 def trigger():
     if not g.principal:
@@ -138,6 +150,7 @@ def trigger():
     if app.config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
         return abort(403, "Access denied")
     return render_template('trigger.html', AccessRights=AccessRights)
+
 
 @app.route('/maint')
 def maint():
@@ -147,10 +160,12 @@ def maint():
         return abort(403, "Access denied")
     return render_template('maint.html', AccessRights=AccessRights)
 
+
 @app.route("/github-webhook", methods=['POST'])
 @verify_github_webhook_signature
 def github_webhook():
     return "Got it"
+
 
 def _workflow_dispatch(workflow_yml, inputs):
     repo = _get_autobuild_repo(session['fork'])
@@ -160,6 +175,7 @@ def _workflow_dispatch(workflow_yml, inputs):
         # don't need to GET the workflow just to trigger it
         workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/{workflow_yml}'}, completed=False)
     return workflow.create_dispatch(repo.default_branch, inputs=inputs)
+
 
 @app.route("/workflow_dispatch", methods=['POST'])
 @verify_login_token
@@ -180,6 +196,7 @@ def workflow_dispatch():
         audit_log(g.principal, session['fork'], 'workflow_dispatch', inputs)
         flash("Workflow run was successfully requested")
     return redirect(url_for('index'))
+
 
 @app.route("/maint_dispatch", methods=['POST'])
 @verify_login_token
@@ -202,6 +219,7 @@ def maint_dispatch():
         flash("Maintenance workflow run was successfully requested")
     return redirect(url_for('index'))
 
+
 @app.route("/cancel", methods=['POST'])
 @verify_login_token
 def cancel():
@@ -218,6 +236,7 @@ def cancel():
         audit_log(g.principal, session['fork'], 'cancel', request.form['id'])
     return redirect(url_for('index'))
 
+
 @app.route('/login')
 def login():
     if g.principal is not None:
@@ -226,15 +245,17 @@ def login():
     else:
         return handle_login()
 
+
 @app.route('/logout')
 def logout():
     if 'user_access_token' in session:
-        access_token=decrypt_protected_var(session['user_access_token'])
+        access_token = decrypt_protected_var(session['user_access_token'])
         requests.delete(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
                         data=f'{{"access_token":"{access_token}"}}',
                         auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
     clear_login_session()
     return redirect(url_for('index'))
+
 
 @app.route('/github-callback')
 @github_oauth_state_check
@@ -253,4 +274,3 @@ def authorized():
     session['user_access_token'] = encrypt_protected_var(access_token.token)
 
     return redirect(next_url)
-
