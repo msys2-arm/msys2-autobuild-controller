@@ -2,11 +2,11 @@
 name = "msys2-autobuild-controller"
 version = "0.1.0"
 description = ""
-authors = [""]
+authors = ["Jeremy Drake <github@jdrake.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.8.1"
-Flask = "^2.0.0"
+python = "^3.10"
+Flask = "^3.0.2"
 requests = "^2.25.1"
 cryptography = ">=3.4.7"
 PyGithub = "1.57"
@@ -15,7 +15,7 @@ gunicorn = "^21.2.0"
 [tool.poetry.dev-dependencies]
 
 [tool.poetry.group.dev.dependencies]
-flake8 = "^6.0.0"
+flake8 = "^7.0.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
