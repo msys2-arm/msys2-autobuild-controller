@@ -25,3 +25,7 @@ jobs:
     - name: Lint
       run: |
         poetry run flake8
+
+    - name: Mypy
+      run: |
+        poetry run mypy .
