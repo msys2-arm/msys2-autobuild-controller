@@ -60,7 +60,9 @@ nav ul li a, nav ul li span, header .action {
 .content > header {
   border-bottom: 1px solid lightgray;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-around;
 }
 
 .content > header h1 {
