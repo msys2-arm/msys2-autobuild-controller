@@ -3,6 +3,7 @@ name = "msys2-autobuild-controller"
 version = "0.1.0"
 description = ""
 authors = ["Jeremy Drake <github@jdrake.com>"]
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
