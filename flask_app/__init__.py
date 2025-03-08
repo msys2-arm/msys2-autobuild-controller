@@ -148,9 +148,8 @@ def authenticated_index():
     # as long as we're dealing with public repos, it shouldn't matter
     # so use up the rate limit on the user token instead :)
     repo = _get_autobuild_repo(session['fork'], decrypt_protected_var(session['user_access_token']))
-    workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/build.yml'}, completed=False)
-    runs = github.PaginatedList.PaginatedList(github.WorkflowRun.WorkflowRun, repo._requester, f'{workflow.url}/runs', {}, list_item="workflow_runs")
-
+    workflow = repo.get_workflow('build.yml')
+    runs = workflow.get_runs().get_page(0)
     return render_template('index.html', runs=runs, AccessRights=AccessRights)
 
 
@@ -180,11 +179,7 @@ def github_webhook():
 
 def _workflow_dispatch(workflow_yml, inputs):
     repo = _get_autobuild_repo(session['fork'])
-    if False:
-        workflow = repo.get_workflow(workflow_yml)
-    else:
-        # don't need to GET the workflow just to trigger it
-        workflow = github.Workflow.Workflow(repo._requester, {}, {'url': f'{repo.url}/actions/workflows/{workflow_yml}'}, completed=False)
+    workflow = repo.get_workflow(workflow_yml)
     return workflow.create_dispatch(repo.default_branch, inputs=inputs)
 
 
@@ -238,12 +233,7 @@ def cancel():
         return abort(403, "Access denied")
 
     repo = _get_autobuild_repo(session['fork'])
-    if False:
-        if repo.get_workflow_run(request.form['id']).cancel():
-            audit_log(g.principal, session['fork'], 'cancel', request.form['id'])
-    else:
-        # don't need to GET the workflow just to cancel it
-        repo._requester.requestJsonAndCheck("POST", f'{repo.url}/actions/runs/{request.form["id"]}/cancel')
+    if repo.get_workflow_run(request.form['id']).cancel():
         audit_log(g.principal, session['fork'], 'cancel', request.form['id'])
     return redirect(url_for('index'))
 
