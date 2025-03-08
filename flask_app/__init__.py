@@ -13,7 +13,7 @@ from typing import Optional
 
 from cryptography.fernet import Fernet
 from flask import Flask, request, abort, session, g, url_for, redirect, flash, render_template
-import github
+from github.Repository import Repository
 from github import Github, GithubIntegration
 
 from .validate_autobuild_inputs import validate_optional_deps, validate_clear_failed_build_types, validate_clear_failed_packages
@@ -53,7 +53,7 @@ def decrypt_protected_var(ciphertext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).decrypt(ciphertext.encode('utf-8')).decode('utf-8')
 
 
-def _get_autobuild_repo(fork: str, token: Optional[str] = None) -> github.Repository.Repository:
+def _get_autobuild_repo(fork: str, token: Optional[str] = None) -> Repository:
     if token is None:
         installation = githubintegration.get_installation(fork, 'msys2-autobuild')
         installation_token = githubintegration.get_access_token(installation.id)
