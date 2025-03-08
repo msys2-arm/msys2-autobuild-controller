@@ -41,8 +41,8 @@ logging.basicConfig(
 logger = logging.getLogger(app.name)
 
 
-def audit_log(principal, fork, action, params):
-    print(f"AUDIT LOG: {principal} {fork} {action} {params!r}", file=sys.stderr)
+def audit_log(principal: Principal, fork: str, action: str, params: dict[str, str]):
+    logger.info(f"AUDIT LOG: {principal} {fork} {action} {params!r}")
 
 
 def encrypt_protected_var(cleartext: str) -> str:
