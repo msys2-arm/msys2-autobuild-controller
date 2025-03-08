@@ -29,10 +29,15 @@ with app.open_instance_resource(app.config['GITHUB_APP_KEY_FILE']) as keyfile:
     assert isinstance(data, bytes)
     app.config['GITHUB_APP_KEY'] = data.decode()
 
+GH_DEFAULTS = {
+    "seconds_between_requests": 0,
+    "lazy": True
+}
+
 ACL: AccessControlList = app.config['ACL']
 
-githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
-oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
+githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'], **GH_DEFAULTS)
+oauthapp = Github(**GH_DEFAULTS).get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -60,7 +65,7 @@ def _get_autobuild_repo(fork: str, token: Optional[str] = None) -> Repository:
         installation = githubintegration.get_installation(fork, 'msys2-autobuild')
         installation_token = githubintegration.get_access_token(installation.id)
         token = installation_token.token
-    gh = Github(login_or_token=token)
+    gh = Github(login_or_token=token, **GH_DEFAULTS)
     return gh.get_repo(fork + '/msys2-autobuild', lazy=True)
 
 
@@ -268,7 +273,7 @@ def authorized():
 
     access_token = oauthapp.get_access_token(request.args['code'], session.get('auth_state'))
 
-    user = Github(access_token.token).get_user()
+    user = Github(access_token.token, **GH_DEFAULTS).get_user()
     principal = Principal(user.type, user.login)
     if principal not in ACL:
         flash(f"Sorry, {user.type} {user.login} is not authorized to use this app")
