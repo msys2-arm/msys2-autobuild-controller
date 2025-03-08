@@ -235,6 +235,7 @@ def cancel():
     repo = _get_autobuild_repo(session['fork'])
     if repo.get_workflow_run(request.form['id']).cancel():
         audit_log(g.principal, session['fork'], 'cancel', request.form['id'])
+        flash("Workflow run was successfully cancelled")
     return redirect(url_for('index'))
 
 
