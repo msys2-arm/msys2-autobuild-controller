@@ -15,6 +15,7 @@ from cryptography.fernet import Fernet
 from flask import Flask, request, abort, session, g, url_for, redirect, flash, render_template
 from github.Repository import Repository
 from github import Github, GithubIntegration
+from github.Auth import AppAuth, Token, AppInstallationAuth
 
 from .validate_autobuild_inputs import validate_optional_deps, validate_clear_failed_build_types, validate_clear_failed_packages
 from .permissions import Principal, AccessRights, AccessControlList
@@ -36,7 +37,8 @@ GH_DEFAULTS = {
 
 ACL: AccessControlList = app.config['ACL']
 
-githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'], **GH_DEFAULTS)
+appauth = AppAuth(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
+githubintegration = GithubIntegration(auth=appauth, **GH_DEFAULTS)
 oauthapp = Github(**GH_DEFAULTS).get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
 
 logging.basicConfig(
@@ -62,10 +64,10 @@ def decrypt_protected_var(ciphertext: str) -> str:
 
 def _get_autobuild_repo(fork: str, token: Optional[str] = None) -> Repository:
     if token is None:
-        installation = githubintegration.get_installation(fork, 'msys2-autobuild')
-        installation_token = githubintegration.get_access_token(installation.id)
-        token = installation_token.token
-    gh = Github(login_or_token=token, **GH_DEFAULTS)
+        installation = githubintegration.get_repo_installation(fork, 'msys2-autobuild')
+        gh = Github(auth=AppInstallationAuth(appauth, installation.id), **GH_DEFAULTS)
+    else:
+        gh = Github(auth=Token(token), **GH_DEFAULTS)
     return gh.get_repo(fork + '/msys2-autobuild', lazy=True)
 
 
@@ -273,7 +275,8 @@ def authorized():
 
     access_token = oauthapp.get_access_token(request.args['code'], session.get('auth_state'))
 
-    user = Github(access_token.token, **GH_DEFAULTS).get_user()
+    auth = oauthapp.get_app_user_auth(access_token)
+    user = Github(auth=auth, **GH_DEFAULTS).get_user()
     principal = Principal(user.type, user.login)
     if principal not in ACL:
         flash(f"Sorry, {user.type} {user.login} is not authorized to use this app")
