@@ -17,7 +17,7 @@ from github.Repository import Repository
 from github import Github, GithubIntegration
 
 from .validate_autobuild_inputs import validate_optional_deps, validate_clear_failed_build_types, validate_clear_failed_packages
-from .permissions import Principal, AccessRights
+from .permissions import Principal, AccessRights, AccessControlList
 
 
 app = Flask(__name__, instance_relative_config=True)
@@ -28,6 +28,8 @@ with app.open_instance_resource(app.config['GITHUB_APP_KEY_FILE']) as keyfile:
     data = keyfile.read()
     assert isinstance(data, bytes)
     app.config['GITHUB_APP_KEY'] = data.decode()
+
+ACL: AccessControlList = app.config['ACL']
 
 githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
@@ -150,25 +152,25 @@ def authenticated_index():
     repo = _get_autobuild_repo(session['fork'], decrypt_protected_var(session['user_access_token']))
     workflow = repo.get_workflow('build.yml')
     runs = workflow.get_runs().get_page(0)
-    return render_template('index.html', runs=runs, AccessRights=AccessRights)
+    return render_template('index.html', runs=runs, ACL=ACL, AccessRights=AccessRights)
 
 
 @app.route('/trigger')
 def trigger():
     if not g.principal:
         return handle_login(url_for(request.endpoint, **request.view_args))
-    if app.config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
+    if ACL.check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
         return abort(403, "Access denied")
-    return render_template('trigger.html', AccessRights=AccessRights)
+    return render_template('trigger.html', ACL=ACL, AccessRights=AccessRights)
 
 
 @app.route('/maint')
 def maint():
     if not g.principal:
         return handle_login(url_for(request.endpoint, **request.view_args))
-    if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
+    if ACL.check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
         return abort(403, "Access denied")
-    return render_template('maint.html', AccessRights=AccessRights)
+    return render_template('maint.html', ACL=ACL, AccessRights=AccessRights)
 
 
 @app.route("/github-webhook", methods=['POST'])
@@ -186,12 +188,12 @@ def _workflow_dispatch(workflow_yml, inputs):
 @app.route("/workflow_dispatch", methods=['POST'])
 @verify_login_token
 def workflow_dispatch():
-    if app.config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
+    if ACL.check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
         return abort(403, "Access denied")
 
     inputs = {'context': json.dumps({"principal": str(g.principal)})}
     if request.form.get('optional_deps'):
-        if app.config['ACL'].check(g.principal, AccessRights.BREAK_CYCLES) != AccessRights.BREAK_CYCLES:
+        if ACL.check(g.principal, AccessRights.BREAK_CYCLES) != AccessRights.BREAK_CYCLES:
             return abort(403, "Access denied")
         try:
             inputs['optional_deps'] = validate_optional_deps(request.form['optional_deps'])
@@ -207,7 +209,7 @@ def workflow_dispatch():
 @app.route("/maint_dispatch", methods=['POST'])
 @verify_login_token
 def maint_dispatch():
-    if app.config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
+    if ACL.check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
         return abort(403, "Access denied")
 
     inputs = {'context': json.dumps({"principal": str(g.principal)})}
@@ -229,7 +231,7 @@ def maint_dispatch():
 @app.route("/cancel", methods=['POST'])
 @verify_login_token
 def cancel():
-    if app.config['ACL'].check(g.principal, AccessRights.CANCEL_RUN) != AccessRights.CANCEL_RUN:
+    if ACL.check(g.principal, AccessRights.CANCEL_RUN) != AccessRights.CANCEL_RUN:
         return abort(403, "Access denied")
 
     repo = _get_autobuild_repo(session['fork'])
@@ -268,7 +270,7 @@ def authorized():
 
     user = Github(access_token.token).get_user()
     principal = Principal(user.type, user.login)
-    if principal not in app.config['ACL']:
+    if principal not in ACL:
         flash(f"Sorry, {user.type} {user.login} is not authorized to use this app")
         return redirect(url_for('index'))
 

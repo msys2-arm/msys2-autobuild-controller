@@ -2,10 +2,10 @@
 
 {% block header %}
   <h1>{% block title %}Recent jobs{% endblock %}</h1>
-  {% if config['ACL'].check(g.principal, AccessRights.TRIGGER_RUN) == AccessRights.TRIGGER_RUN %}
+  {% if ACL.check(g.principal, AccessRights.TRIGGER_RUN) == AccessRights.TRIGGER_RUN %}
     <h3 style="flex-direction: column; margin-right: 1rem"><a class="action" href="{{ url_for('trigger') }}">Trigger run</a></h3>
   {% endif %}
-  {% if config['ACL'].check(g.principal, AccessRights.CLEAR_FAILURES) == AccessRights.CLEAR_FAILURES %}
+  {% if ACL.check(g.principal, AccessRights.CLEAR_FAILURES) == AccessRights.CLEAR_FAILURES %}
   <h3 style="flex-direction: column; margin-right: 1rem"><a class="action" href="{{ url_for('maint') }}">Maintenance</a></h3>
   {% endif %}
   <form method="POST">
@@ -27,7 +27,7 @@
           <h2>{{ run.status }}{% if run.status == 'completed' %} - {{ run.conclusion }}{% endif %}</h2>
           <div class="about">by {{ run._rawData['actor']['login'] }} on {{ run.created_at }} (last updated {{ run.updated_at }})</div>
         </div>
-        {% if run.status in ('queued', 'pending', 'in_progress') and config['ACL'].check(g.principal, AccessRights.CANCEL_RUN) == AccessRights.CANCEL_RUN %}
+        {% if run.status in ('queued', 'pending', 'in_progress') and ACL.check(g.principal, AccessRights.CANCEL_RUN) == AccessRights.CANCEL_RUN %}
           <form action="{{ url_for('cancel') }}" method="POST">
             <input type="hidden" id="id" name="id" value="{{ run.id }}">
             <input class="danger" type="submit" value="Cancel" onclick="return confirm('Are you sure?');">
