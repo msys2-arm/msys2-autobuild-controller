@@ -31,6 +31,9 @@ class AccessControlList(Dict[Principal, AccessRights]):
             access_entry &= access_requested
         return access_entry
 
+    def is_granted(self, principal: Principal, access_requested: AccessRights) -> bool:
+        return self.check(principal, access_requested) == access_requested
+
     def grant(self, principal: Principal, access_rights: AccessRights) -> None:
         self.setdefault(principal, AccessRights.NO_ACCESS)
         self[principal] |= access_rights

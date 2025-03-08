@@ -6,7 +6,7 @@
 
 {% block content %}
 <form action="{{ url_for('workflow_dispatch') }}" method="POST">
-  {% if ACL.check(g.principal, AccessRights.BREAK_CYCLES) == AccessRights.BREAK_CYCLES %}
+  {% if ACL.is_granted(g.principal, AccessRights.BREAK_CYCLES) %}
     <label for="optional_deps">optional_deps=pkg-A:optional-dep-B,pkg-C:optional-dep-D</label>
     <input name="optional_deps" id="optional_deps">
   {% endif %}

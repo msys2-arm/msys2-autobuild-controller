@@ -159,7 +159,7 @@ def authenticated_index():
 def trigger():
     if not g.principal:
         return handle_login(url_for(request.endpoint, **request.view_args))
-    if ACL.check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
+    if not ACL.is_granted(g.principal, AccessRights.TRIGGER_RUN):
         return abort(403, "Access denied")
     return render_template('trigger.html', ACL=ACL, AccessRights=AccessRights)
 
@@ -168,7 +168,7 @@ def trigger():
 def maint():
     if not g.principal:
         return handle_login(url_for(request.endpoint, **request.view_args))
-    if ACL.check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
+    if not ACL.is_granted(g.principal, AccessRights.CLEAR_FAILURES):
         return abort(403, "Access denied")
     return render_template('maint.html', ACL=ACL, AccessRights=AccessRights)
 
@@ -188,12 +188,12 @@ def _workflow_dispatch(workflow_yml, inputs):
 @app.route("/workflow_dispatch", methods=['POST'])
 @verify_login_token
 def workflow_dispatch():
-    if ACL.check(g.principal, AccessRights.TRIGGER_RUN) != AccessRights.TRIGGER_RUN:
+    if not ACL.is_granted(g.principal, AccessRights.TRIGGER_RUN):
         return abort(403, "Access denied")
 
     inputs = {'context': json.dumps({"principal": str(g.principal)})}
     if request.form.get('optional_deps'):
-        if ACL.check(g.principal, AccessRights.BREAK_CYCLES) != AccessRights.BREAK_CYCLES:
+        if not ACL.is_granted(g.principal, AccessRights.BREAK_CYCLES):
             return abort(403, "Access denied")
         try:
             inputs['optional_deps'] = validate_optional_deps(request.form['optional_deps'])
@@ -209,7 +209,7 @@ def workflow_dispatch():
 @app.route("/maint_dispatch", methods=['POST'])
 @verify_login_token
 def maint_dispatch():
-    if ACL.check(g.principal, AccessRights.CLEAR_FAILURES) != AccessRights.CLEAR_FAILURES:
+    if not ACL.is_granted(g.principal, AccessRights.CLEAR_FAILURES):
         return abort(403, "Access denied")
 
     inputs = {'context': json.dumps({"principal": str(g.principal)})}
@@ -231,7 +231,7 @@ def maint_dispatch():
 @app.route("/cancel", methods=['POST'])
 @verify_login_token
 def cancel():
-    if ACL.check(g.principal, AccessRights.CANCEL_RUN) != AccessRights.CANCEL_RUN:
+    if not ACL.is_granted(g.principal, AccessRights.CANCEL_RUN):
         return abort(403, "Access denied")
 
     repo = _get_autobuild_repo(session['fork'])
