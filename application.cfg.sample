@@ -1,6 +1,6 @@
 # vim: set ft=python :
 
-from permissions import *
+from flask_app.permissions import *
 
 # Flask config
 SECRET_KEY = '' # see https://flask.palletsprojects.com/en/2.2.x/config/#SECRET_KEY

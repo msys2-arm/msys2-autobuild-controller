@@ -15,8 +15,8 @@ from flask import Flask, request, abort, session, g, url_for, redirect, flash, r
 import github
 from github import Github, GithubIntegration
 
-from validate_autobuild_inputs import validate_optional_deps, validate_clear_failed_build_types, validate_clear_failed_packages
-from permissions import Principal, AccessRights
+from .validate_autobuild_inputs import validate_optional_deps, validate_clear_failed_build_types, validate_clear_failed_packages
+from .permissions import Principal, AccessRights
 
 
 app = Flask(__name__, instance_relative_config=True)
