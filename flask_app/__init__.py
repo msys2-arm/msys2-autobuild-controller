@@ -7,6 +7,7 @@ import json
 import requests
 import secrets
 import sys
+import logging
 
 from typing import Optional
 
@@ -30,6 +31,14 @@ with app.open_instance_resource(app.config['GITHUB_APP_KEY_FILE']) as keyfile:
 
 githubintegration = GithubIntegration(app.config['GITHUB_APP_ID'], app.config['GITHUB_APP_KEY'])
 oauthapp = Github().get_oauth_application(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"])
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stderr)]
+)
+
+logger = logging.getLogger(app.name)
 
 
 def audit_log(principal, fork, action, params):
