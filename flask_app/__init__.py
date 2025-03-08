@@ -96,19 +96,6 @@ def verify_github_webhook_signature(func):
     return wrapper_github_webhook_signature_verification
 
 
-def github_oauth_state_check(func):
-    @functools.wraps(func)
-    def wrapper_github_oauth_state_check(*args, **kwargs):
-        if 'auth_state' in session or 'state' in request.args:
-            try:
-                if not secrets.compare_digest(session['auth_state'], request.args['state']):
-                    return abort(401, 'Bad CSRF token')
-            except KeyError:
-                return abort(401, 'Missing CSRF token')
-        return func(*args, **kwargs)
-    return wrapper_github_oauth_state_check
-
-
 def verify_login_token(func):
     @functools.wraps(func)
     def wrapper_verify_login_token(*args, **kwargs):
@@ -269,8 +256,13 @@ def logout():
 
 
 @app.route('/github-callback')
-@github_oauth_state_check
 def authorized():
+    if 'auth_state' in session and 'state' in request.args:
+        if not secrets.compare_digest(session['auth_state'], request.args['state']):
+            return abort(401, 'Bad CSRF token')
+    else:
+        return abort(401, 'Missing CSRF token')
+
     next_url = session.pop('auth_next', None) or url_for('index')
 
     access_token = oauthapp.get_access_token(request.args['code'], session.get('auth_state'))
