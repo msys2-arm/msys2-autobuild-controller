@@ -1,4 +1,4 @@
-FROM python:3.11-bookworm
+FROM python:3.13-bookworm
 
 RUN python -m pip install "poetry==2.1.1"
 
