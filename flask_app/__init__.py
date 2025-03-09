@@ -9,6 +9,7 @@ import secrets
 import sys
 import logging
 import urllib.parse
+import threading
 
 from cryptography.fernet import Fernet
 from flask import Flask, request, abort, session, g, url_for, redirect, flash, render_template
@@ -62,13 +63,14 @@ def decrypt_protected_var(ciphertext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).decrypt(ciphertext.encode('utf-8')).decode('utf-8')
 
 
-def _get_autobuild_repo(fork: str, *, _gh_cache: dict[int, Github] = {}) -> Repository:
-    if fork not in _gh_cache:
-        installation = githubintegration.get_repo_installation(fork, 'msys2-autobuild')
-        auth = AppInstallationAuth(
-            appauth, installation.id, {"actions": "write", "metadata": "read"})
-        _gh_cache[fork] = Github(auth=auth, **GH_DEFAULTS)
-    gh = _gh_cache[fork]
+def _get_autobuild_repo(fork: str, *, _gh_cache: dict[int, Github] = {}, _cache_lock=threading.RLock()) -> Repository:
+    with _cache_lock:
+        if fork not in _gh_cache:
+            installation = githubintegration.get_repo_installation(fork, 'msys2-autobuild')
+            auth = AppInstallationAuth(
+                appauth, installation.id, {"actions": "write", "metadata": "read"})
+            _gh_cache[fork] = Github(auth=auth, **GH_DEFAULTS)
+        gh = _gh_cache[fork]
     return gh.get_repo(fork + '/msys2-autobuild', lazy=True)
 
 
