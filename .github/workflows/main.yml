@@ -29,3 +29,25 @@ jobs:
     - name: Mypy
       run: |
         poetry run mypy .
+
+  deploy:
+    permissions:
+      contents: read
+      packages: write
+    needs: [test]
+    runs-on: ubuntu-latest
+    if: (github.repository == 'msys2/msys2-autobuild-controller' && github.event_name == 'push' && github.ref == 'refs/heads/main')
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in
+        run: |
+          echo "$TOKEN" | docker login ghcr.io --username "$USERNAME" --password-stdin
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USERNAME: ${{ github.actor }}
+      - name: Build image
+        run: |
+          docker build --tag ghcr.io/msys2/msys2-autobuild-controller:latest .
+      - name: Deploy image
+        run: |
+          docker push ghcr.io/msys2/msys2-autobuild-controller:latest
