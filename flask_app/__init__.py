@@ -100,13 +100,14 @@ def verify_github_webhook_signature(func):
 def verify_login_token(func):
     @functools.wraps(func)
     def wrapper_verify_login_token(*args, **kwargs):
-        resp = None
+        is_valid = False
         if 'user_access_token' in session:
             access_token = decrypt_protected_var(session['user_access_token'])
             resp = requests.post(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
                                  data=f'{{"access_token":"{access_token}"}}',
                                  auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
-        if not resp:
+            is_valid = resp.ok
+        if not is_valid:
             clear_login_session()
             return handle_login(url_for(request.endpoint, **request.view_args))
         return func(*args, **kwargs)
