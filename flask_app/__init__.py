@@ -8,12 +8,14 @@ import requests
 import secrets
 import sys
 import logging
+import urllib.parse
 
 from cryptography.fernet import Fernet
 from flask import Flask, request, abort, session, g, url_for, redirect, flash, render_template
 from github.Repository import Repository
 from github import Github, GithubIntegration
 from github.Auth import AppAuth, AppInstallationAuth
+from github.Workflow import Workflow
 
 from .validate_autobuild_inputs import validate_optional_deps, validate_clear_failed_build_types, validate_clear_failed_packages
 from .permissions import Principal, AccessRights, AccessControlList
@@ -129,6 +131,14 @@ def index():
     return authenticated_index()
 
 
+def get_lazy_repo_workflow(repo: Repository, id_or_file_name: str | int) -> Workflow:
+    # XXX: We only need the Workflow to get to the runs, so make it lazy
+    id_or_file_name = urllib.parse.quote(str(id_or_file_name))
+    return Workflow(repo._requester, {}, {
+        'name': str(id_or_file_name),
+        'url': f'{repo.url}/actions/workflows/{id_or_file_name}'}, completed=False)
+
+
 @verify_login_token
 def authenticated_index():
     if 'fork' in request.values and request.values['fork'] in app.config['AUTOBUILD_FORKS']:
@@ -140,7 +150,7 @@ def authenticated_index():
         return redirect(url_for(request.endpoint, **request.view_args))
 
     repo = _get_autobuild_repo(session['fork'])
-    workflow = repo.get_workflow('build.yml')
+    workflow = get_lazy_repo_workflow(repo, 'build.yml')
     runs = workflow.get_runs().get_page(0)
     return render_template('index.html', runs=runs, ACL=ACL, AccessRights=AccessRights)
 
@@ -169,9 +179,9 @@ def github_webhook():
     return "Got it"
 
 
-def _workflow_dispatch(workflow_yml, inputs):
+def _workflow_dispatch(workflow_yml: str, inputs) -> bool:
     repo = _get_autobuild_repo(session['fork'])
-    workflow = repo.get_workflow(workflow_yml)
+    workflow = get_lazy_repo_workflow(repo, workflow_yml)
     return workflow.create_dispatch(repo.default_branch, inputs=inputs)
 
 
