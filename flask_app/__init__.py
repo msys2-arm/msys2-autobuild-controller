@@ -98,16 +98,22 @@ def verify_github_webhook_signature(func):
     return wrapper_github_webhook_signature_verification
 
 
+def check_app_token(access_token: str) -> bool:
+    # https://docs.github.com/en/rest/apps/oauth-applications#check-a-token
+    client_id = urllib.parse.quote(app.config["GITHUB_CLIENT_ID"])
+    resp = requests.post(f'https://api.github.com/applications/{client_id}/token',
+                         data=f'{{"access_token":"{access_token}"}}',
+                         auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
+    return resp.ok
+
+
 def verify_login_token(func):
     @functools.wraps(func)
     def wrapper_verify_login_token(*args, **kwargs):
         is_valid = False
         if 'user_access_token' in session:
             access_token = decrypt_protected_var(session['user_access_token'])
-            resp = requests.post(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
-                                 data=f'{{"access_token":"{access_token}"}}',
-                                 auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
-            is_valid = resp.ok
+            is_valid = check_app_token(access_token)
         if not is_valid:
             clear_login_session()
             return handle_login(url_for(request.endpoint, **request.view_args))
@@ -252,13 +258,21 @@ def login():
         return handle_login()
 
 
+def revoke_app_token(access_token: str) -> bool:
+    # https://docs.github.com/en/rest/apps/oauth-applications#delete-an-app-token
+    client_id = urllib.parse.quote(app.config["GITHUB_CLIENT_ID"])
+    resp = requests.delete(
+        f'https://api.github.com/applications/{client_id}/token',
+        data=f'{{"access_token":"{access_token}"}}',
+        auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
+    return resp.status_code == 204
+
+
 @app.route('/logout')
 def logout():
     if 'user_access_token' in session:
         access_token = decrypt_protected_var(session['user_access_token'])
-        requests.delete(f'https://api.github.com/applications/{app.config["GITHUB_CLIENT_ID"]}/token',
-                        data=f'{{"access_token":"{access_token}"}}',
-                        auth=(app.config["GITHUB_CLIENT_ID"], app.config["GITHUB_CLIENT_SECRET"]))
+        revoke_app_token(access_token)
     clear_login_session()
     return redirect(url_for('index'))
 
