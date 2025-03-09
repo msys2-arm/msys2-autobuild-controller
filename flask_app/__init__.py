@@ -80,7 +80,8 @@ def handle_login(next=None):
     session['auth_state'] = secrets.token_urlsafe()
     if next:
         session['auth_next'] = next
-    return redirect(oauthapp.get_login_url(state=session['auth_state']))
+    redirect_uri = url_for('authorized', _external=True)
+    return redirect(oauthapp.get_login_url(state=session['auth_state'], redirect_uri=redirect_uri))
 
 
 def verify_github_webhook_signature(func):
