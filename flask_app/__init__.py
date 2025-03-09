@@ -123,6 +123,7 @@ def verify_login_token(func):
 
 @app.before_request
 def load_principal():
+    session.permanent = True
     principal = session.get('user_principal')
     if principal:
         g.principal = Principal._make(principal)
