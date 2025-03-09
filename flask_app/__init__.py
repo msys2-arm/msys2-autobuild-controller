@@ -9,13 +9,11 @@ import secrets
 import sys
 import logging
 
-from typing import Optional
-
 from cryptography.fernet import Fernet
 from flask import Flask, request, abort, session, g, url_for, redirect, flash, render_template
 from github.Repository import Repository
 from github import Github, GithubIntegration
-from github.Auth import AppAuth, Token, AppInstallationAuth
+from github.Auth import AppAuth, AppInstallationAuth
 
 from .validate_autobuild_inputs import validate_optional_deps, validate_clear_failed_build_types, validate_clear_failed_packages
 from .permissions import Principal, AccessRights, AccessControlList
@@ -62,12 +60,13 @@ def decrypt_protected_var(ciphertext: str) -> str:
     return Fernet(app.config['FERNET_SECRET_KEY'].encode('utf-8')).decrypt(ciphertext.encode('utf-8')).decode('utf-8')
 
 
-def _get_autobuild_repo(fork: str, token: Optional[str] = None) -> Repository:
-    if token is None:
+def _get_autobuild_repo(fork: str, *, _gh_cache: dict[int, Github] = {}) -> Repository:
+    if fork not in _gh_cache:
         installation = githubintegration.get_repo_installation(fork, 'msys2-autobuild')
-        gh = Github(auth=AppInstallationAuth(appauth, installation.id), **GH_DEFAULTS)
-    else:
-        gh = Github(auth=Token(token), **GH_DEFAULTS)
+        auth = AppInstallationAuth(
+            appauth, installation.id, {"actions": "write", "metadata": "read"})
+        _gh_cache[fork] = Github(auth=auth, **GH_DEFAULTS)
+    gh = _gh_cache[fork]
     return gh.get_repo(fork + '/msys2-autobuild', lazy=True)
 
 
@@ -140,10 +139,7 @@ def authenticated_index():
     if request.method == 'POST':
         return redirect(url_for(request.endpoint, **request.view_args))
 
-    # get and use app installation token, or just use user token?
-    # as long as we're dealing with public repos, it shouldn't matter
-    # so use up the rate limit on the user token instead :)
-    repo = _get_autobuild_repo(session['fork'], decrypt_protected_var(session['user_access_token']))
+    repo = _get_autobuild_repo(session['fork'])
     workflow = repo.get_workflow('build.yml')
     runs = workflow.get_runs().get_page(0)
     return render_template('index.html', runs=runs, ACL=ACL, AccessRights=AccessRights)
