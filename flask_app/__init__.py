@@ -138,7 +138,7 @@ def index():
     if not g.principal:
         if request.method != 'GET':
             return abort(405, 'Method not allowed')
-        return render_template('index_anonymous.html')
+        return render_template('index_anonymous.html', ACL=ACL, AccessRights=AccessRights)
     return authenticated_index()
 
 
@@ -150,35 +150,49 @@ def get_lazy_repo_workflow(repo: Repository, id_or_file_name: str | int) -> Work
         'url': f'{repo.url}/actions/workflows/{id_or_file_name}'}, completed=False)
 
 
-@verify_login_token
-def authenticated_index():
+def _get_fork() -> str:
     if 'fork' in request.values and request.values['fork'] in app.config['AUTOBUILD_FORKS']:
         session['fork'] = request.values['fork']
-    elif 'fork' not in session:
+    elif 'fork' not in session or session['fork'] not in app.config['AUTOBUILD_FORKS']:
         session['fork'] = sorted(app.config['AUTOBUILD_FORKS'])[0]
+    return session['fork']
 
+
+@verify_login_token
+def authenticated_index():
+    fork = _get_fork()
     if request.method == 'POST':
         return redirect(url_for(request.endpoint, **request.view_args))
 
-    repo = _get_autobuild_repo(session['fork'])
+    repo = _get_autobuild_repo(fork)
     workflow = get_lazy_repo_workflow(repo, 'build.yml')
     runs = workflow.get_runs().get_page(0)
     return render_template('index.html', runs=runs, ACL=ACL, AccessRights=AccessRights)
 
 
-@app.route('/trigger')
+@app.route('/trigger', methods=('GET', 'POST'))
 def trigger():
     if not g.principal:
         return handle_login(url_for(request.endpoint, **request.view_args))
+
+    _get_fork()
+    if request.method == 'POST':
+        return redirect(url_for(request.endpoint, **request.view_args))
+
     if not ACL.is_granted(g.principal, AccessRights.TRIGGER_RUN):
         return abort(403, "Access denied")
     return render_template('trigger.html', ACL=ACL, AccessRights=AccessRights)
 
 
-@app.route('/maint')
+@app.route('/maint', methods=('GET', 'POST'))
 def maint():
     if not g.principal:
         return handle_login(url_for(request.endpoint, **request.view_args))
+
+    _get_fork()
+    if request.method == 'POST':
+        return redirect(url_for(request.endpoint, **request.view_args))
+
     if not ACL.is_granted(g.principal, AccessRights.CLEAR_FAILURES):
         return abort(403, "Access denied")
     return render_template('maint.html', ACL=ACL, AccessRights=AccessRights)
@@ -190,8 +204,8 @@ def github_webhook():
     return "Got it"
 
 
-def _workflow_dispatch(workflow_yml: str, inputs) -> bool:
-    repo = _get_autobuild_repo(session['fork'])
+def _workflow_dispatch(fork: str, workflow_yml: str, inputs) -> bool:
+    repo = _get_autobuild_repo(fork)
     workflow = get_lazy_repo_workflow(repo, workflow_yml)
     return workflow.create_dispatch(repo.default_branch, inputs=inputs)
 
@@ -211,10 +225,11 @@ def workflow_dispatch():
         except ValueError:
             return abort(400, "Bad request")
 
-    if _workflow_dispatch('build.yml', inputs):
-        audit_log(g.principal, session['fork'], 'workflow_dispatch', inputs)
+    fork = _get_fork()
+    if _workflow_dispatch(fork, 'build.yml', inputs):
+        audit_log(g.principal, fork, 'workflow_dispatch', inputs)
         flash("Workflow run was successfully requested")
-    return redirect(url_for('index'))
+    return redirect(url_for('trigger'))
 
 
 @app.route("/maint_dispatch", methods=['POST'])
@@ -233,10 +248,11 @@ def maint_dispatch():
     except ValueError:
         return abort(400, "Bad request")
 
-    if _workflow_dispatch('maint.yml', inputs):
-        audit_log(g.principal, session['fork'], 'maint_dispatch', inputs)
+    fork = _get_fork()
+    if _workflow_dispatch(fork, 'maint.yml', inputs):
+        audit_log(g.principal, fork, 'maint_dispatch', inputs)
         flash("Maintenance workflow run was successfully requested")
-    return redirect(url_for('index'))
+    return redirect(url_for('maint'))
 
 
 @app.route("/cancel", methods=['POST'])
@@ -245,9 +261,10 @@ def cancel():
     if not ACL.is_granted(g.principal, AccessRights.CANCEL_RUN):
         return abort(403, "Access denied")
 
-    repo = _get_autobuild_repo(session['fork'])
+    fork = _get_fork()
+    repo = _get_autobuild_repo(fork)
     if repo.get_workflow_run(int(request.form['id'])).cancel():
-        audit_log(g.principal, session['fork'], 'cancel', request.form['id'])
+        audit_log(g.principal, fork, 'cancel', request.form['id'])
         flash("Workflow run was successfully cancelled")
     return redirect(url_for('index'))
 

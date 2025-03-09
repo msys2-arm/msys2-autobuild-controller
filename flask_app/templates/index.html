@@ -1,21 +1,7 @@
 {% extends 'base.html' %}
 
 {% block header %}
-  <h1>{% block title %}Recent jobs{% endblock %}</h1>
-  {% if ACL.is_granted(g.principal, AccessRights.TRIGGER_RUN) %}
-    <h3 style="flex-direction: column; margin-right: 1rem"><a class="action" href="{{ url_for('trigger') }}">Trigger run</a></h3>
-  {% endif %}
-  {% if ACL.is_granted(g.principal, AccessRights.CLEAR_FAILURES) %}
-  <h3 style="flex-direction: column; margin-right: 1rem"><a class="action" href="{{ url_for('maint') }}">Maintenance</a></h3>
-  {% endif %}
-  <form method="POST">
-    For autobuild fork
-    <select name="fork" id="fork" onchange="this.form.submit()">
-      {% for fork in config['AUTOBUILD_FORKS']|sort %}
-        <option value="{{ fork }}"{{ " selected" if fork == session['fork'] else "" }}>{{ fork }}</option>
-      {% endfor %}
-    </select>
-  </form>
+  <h3>{% block title %}Recent Jobs for autobuild fork {{ session['fork'] }}{% endblock %}</h3>
 {% endblock %}
 
 {% block content %}
@@ -23,8 +9,8 @@
     <article class="post">
       <header>
         <div>
-          <h1><a href="{{ run.html_url }}">{{ run.name }} - {{ run.event }}</a></h1>
-          <h2>{{ run.status }}{% if run.status == 'completed' %} - {{ run.conclusion }}{% endif %}</h2>
+          <h3><a href="{{ run.html_url }}">{{ run.name }} - {{ run.event }}</a></h3>
+          <h4>{{ run.status }}{% if run.status == 'completed' %} - {{ run.conclusion }}{% endif %}</h4>
           <div class="about">by {{ run.actor.login }} on {{ run.created_at }} (last updated {{ run.updated_at }})</div>
         </div>
         {% if run.status in ('queued', 'pending', 'in_progress') and ACL.is_granted(g.principal, AccessRights.CANCEL_RUN) %}

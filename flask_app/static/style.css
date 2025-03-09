@@ -57,12 +57,14 @@ nav ul li a, nav ul li span, header .action {
   padding: 0 1rem 1rem;
 }
 
-.content > header {
+.subnav {
   border-bottom: 1px solid lightgray;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: space-around;
+  padding: 0.3em;
+  gap: 0 1em;
 }
 
 .content > header h1 {
@@ -105,10 +107,11 @@ nav ul li a, nav ul li span, header .action {
   margin-bottom: 0;
 }
 
-.content form {
-  margin: 1em 0;
+.content form, .subnav form {
+  margin: 0.2em 0;
   display: flex;
   flex-direction: column;
+  gap: 0.2em;
 }
 
 .content label {

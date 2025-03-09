@@ -15,6 +15,25 @@
     {% endif %}
   </ul>
 </nav>
+{% if g.principal %}
+<div class="subnav">
+    <h3 style="flex-direction: column"><a class="action" href="{{ url_for('index') }}">Recent Jobs</a></h3>
+    {% if ACL.is_granted(g.principal, AccessRights.TRIGGER_RUN) %}
+    <h3 style="flex-direction: column"><a class="action" href="{{ url_for('trigger') }}">Trigger run</a></h3>
+    {% endif %}
+    {% if ACL.is_granted(g.principal, AccessRights.CLEAR_FAILURES) %}
+    <h3 style="flex-direction: column"><a class="action" href="{{ url_for('maint') }}">Maintenance</a></h3>
+    {% endif %}
+    <form method="POST">
+        For autobuild fork
+        <select name="fork" id="fork" onchange="this.form.submit()">
+            {% for fork in config['AUTOBUILD_FORKS']|sort %}
+            <option value="{{ fork }}"{{ " selected" if fork == session['fork'] else "" }}>{{ fork }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+{% endif %}
 <section class="content">
   <header>
     {% block header %}{% endblock %}
